@@ -12,8 +12,8 @@ import socket
 # constants
 DEFAULT_FPS = 30
 BUFFER_SECONDS = 120
-FRAME_WIDTH = 640
-FRAME_HEIGHT = 480
+FRAME_WIDTH = 1920
+FRAME_HEIGHT = 1080
 DEFAULT_PORT = 5050
 
 # global variables
@@ -101,6 +101,8 @@ def main(buffer_seconds=BUFFER_SECONDS, port=DEFAULT_PORT, wemos_ip=''):
 
     # video source
     vid = cv2.VideoCapture(camera_index)
+    vid.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
+    vid.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
     fps = vid.get(cv2.CAP_PROP_FPS) or DEFAULT_FPS
     frame_buffer = deque(maxlen=int(fps * buffer_seconds))
 
