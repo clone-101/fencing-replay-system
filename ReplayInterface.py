@@ -3,20 +3,29 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 from datetime import datetime
 import os
-import cv2
+import cv2 # type: ignore
 import threading
 from collections import deque
 import time
+import socket
 
+# constants
 DEFAULT_FPS = 30
-BUFFER_SECONDS = 10
+BUFFER_SECONDS = 120
 FRAME_WIDTH = 640
 FRAME_HEIGHT = 480
+DEFAULT_PORT = 5050
 
+# global variables
 running = True
 frame_buffer = None
 vid = None
 fps = DEFAULT_FPS
+
+# UDP global variables
+port = DEFAULT_PORT
+wemos_ip = ''
+udp_message = None
 
 # tkinter global variables
 root = None
@@ -41,7 +50,7 @@ def _update_canvas(imgtk):
     canvas.create_image(0, 0, image=imgtk, anchor=tk.NW)
     canvas.image = imgtk
 
-def save_last_10_seconds():
+def save_video():
     global frame_buffer, fps
     os.makedirs("recordings", exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -57,6 +66,24 @@ def save_last_10_seconds():
     out.release()
     print(f"Saved last 10 seconds to {filename}")
 
+def listen_for_udp():
+    global running, port, wemos_ip, udp_message
+    soc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    soc.bind(('0.0.0.0', port))
+
+    while running:
+        try:
+            data, addr = soc.recvfrom(1024)
+            if addr[0] == wemos_ip:
+                udp_message = data.decode('utf-8')
+                save_video()
+        except socket.error as e:
+            if not running:
+                break
+            print(f"Socket error: {e}")
+    
+    soc.close()
+
 def on_close():
     global running, vid, root
     running = False
@@ -64,7 +91,7 @@ def on_close():
         vid.release()
     root.destroy()
 
-def main():
+def main(buffer_seconds=BUFFER_SECONDS, port=DEFAULT_PORT, wemos_ip=''):
     global root, canvas, frame_buffer, vid, fps
 
     root = tk.Tk()
@@ -82,15 +109,18 @@ def main():
     # controls
     controls = ttk.Frame(root)
     controls.pack()
-    btn_save = ttk.Button(controls, text="Save Last 10s", command=save_last_10_seconds)
+    btn_save = ttk.Button(controls, text="Save Last 10s", command=save_video)
     btn_save.grid(row=0, column=0, padx=10, pady=5)
 
     # start video thread
     threading.Thread(target=update_frame, daemon=True).start()
+
+    # start UDP listener thread
+    threading.Thread(target=listen_for_udp, daemon=True).start()
 
     # handle window close
     root.protocol("WM_DELETE_WINDOW", on_close)
     root.mainloop()
 
 if __name__ == "__main__":
-    main()
+    main(buffer_seconds=10, port=DEFAULT_PORT)
