@@ -21,6 +21,7 @@ running = True
 frame_buffer = None
 vid = None
 fps = DEFAULT_FPS
+camera_index = 0
 
 # UDP global variables
 port = DEFAULT_PORT
@@ -60,7 +61,8 @@ def save_video():
         print("No frames to save.")
         return
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(filename, fourcc, fps, (FRAME_WIDTH, FRAME_HEIGHT))
+    height, width, _ = frames[0].shape
+    out = cv2.VideoWriter(filename, fourcc, fps, (width, height))
     for frame in frames:
         out.write(frame)
     out.release()
@@ -74,9 +76,9 @@ def listen_for_udp():
     while running:
         try:
             data, addr = soc.recvfrom(1024)
-            if addr[0] == wemos_ip:
-                udp_message = data.decode('utf-8')
-                save_video()
+            #if addr[0] == wemos_ip:
+            udp_message = data.decode('utf-8')
+            save_video()
         except socket.error as e:
             if not running:
                 break
@@ -92,7 +94,7 @@ def on_close():
     root.destroy()
 
 def main(buffer_seconds=BUFFER_SECONDS, port=DEFAULT_PORT, wemos_ip=''):
-    global root, canvas, frame_buffer, vid, fps
+    global root, canvas, frame_buffer, vid, fps, camera_index
 
     root = tk.Tk()
     root.title("Fencing Replay System")
@@ -100,7 +102,7 @@ def main(buffer_seconds=BUFFER_SECONDS, port=DEFAULT_PORT, wemos_ip=''):
     # video source
     vid = cv2.VideoCapture(0)
     fps = vid.get(cv2.CAP_PROP_FPS) or DEFAULT_FPS
-    frame_buffer = deque(maxlen=int(fps * BUFFER_SECONDS))
+    frame_buffer = deque(maxlen=int(fps * buffer_seconds))
 
     # canvas for video
     canvas = tk.Canvas(root, width=FRAME_WIDTH, height=FRAME_HEIGHT)
