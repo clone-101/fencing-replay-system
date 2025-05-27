@@ -100,7 +100,7 @@ def main(buffer_seconds=BUFFER_SECONDS, port=DEFAULT_PORT, wemos_ip=''):
     root.title("Fencing Replay System")
 
     # video source
-    vid = cv2.VideoCapture(0)
+    vid = cv2.VideoCapture(camera_index)
     fps = vid.get(cv2.CAP_PROP_FPS) or DEFAULT_FPS
     frame_buffer = deque(maxlen=int(fps * buffer_seconds))
 
