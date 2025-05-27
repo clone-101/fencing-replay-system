@@ -12,8 +12,8 @@ import socket
 # constants
 DEFAULT_FPS = 30
 BUFFER_SECONDS = 120
-FRAME_WIDTH = 1920
-FRAME_HEIGHT = 1080
+DEFAULT_FRAME_WIDTH = 1920
+DEFAULT_FRAME_HEIGHT = 1080
 DEFAULT_PORT = 5050
 
 # global variables
@@ -21,6 +21,8 @@ running = True
 frame_buffer = None
 vid = None
 fps = DEFAULT_FPS
+frame_width = DEFAULT_FRAME_WIDTH
+frame_height = DEFAULT_FRAME_HEIGHT
 camera_index = 0
 
 # UDP global variables
@@ -101,13 +103,15 @@ def main(buffer_seconds=BUFFER_SECONDS, port=DEFAULT_PORT, wemos_ip=''):
 
     # video source
     vid = cv2.VideoCapture(camera_index)
-    vid.set(cv2.CAP_PROP_FRAME_WIDTH, FRAME_WIDTH)
-    vid.set(cv2.CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT)
+    vid.set(cv2.CAP_PROP_FRAME_WIDTH, DEFAULT_FRAME_WIDTH)
+    vid.set(cv2.CAP_PROP_FRAME_HEIGHT, DEFAULT_FRAME_HEIGHT)
     fps = vid.get(cv2.CAP_PROP_FPS) or DEFAULT_FPS
     frame_buffer = deque(maxlen=int(fps * buffer_seconds))
 
     # canvas for video
-    canvas = tk.Canvas(root, width=FRAME_WIDTH, height=FRAME_HEIGHT)
+    canvas_width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+    canvas_height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    canvas = tk.Canvas(root, width=canvas_width, height=canvas_height)
     canvas.pack()
 
     # controls
