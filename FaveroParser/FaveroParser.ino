@@ -104,3 +104,18 @@ void loop()
 
 	delay(15000);
 }
+
+unsigned int hex_string_to_int(unsigned char msg)
+{
+	unsigned int high = msg >> 4;  // upper 4 bits (high nibble)
+	unsigned int low = msg & 0x0F; // lower 4 bits (low nibble)
+
+	if (low < 10 && high * 10 + low < 100)
+	{
+		return high * 10 + low;
+	}
+	else
+	{
+		return 0; // fallback for invalid input
+	}
+}
