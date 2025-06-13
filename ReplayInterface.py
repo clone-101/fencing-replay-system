@@ -1,13 +1,14 @@
-import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 from datetime import datetime
-import os
-import cv2 # type: ignore
-import threading
 from collections import deque
+import tkinter as tk
+import os
+import cv2
+import threading
 import time
 import socket
+import json
 
 # constants
 DEFAULT_FPS = 30
@@ -80,6 +81,7 @@ def listen_for_udp():
             data, addr = soc.recvfrom(1024)
             #if addr[0] == wemos_ip:
             udp_message = data.decode('utf-8')
+            parse_message(udp_message)
             save_video()
         except socket.error as e:
             if not running:
@@ -87,6 +89,14 @@ def listen_for_udp():
             print(f"Socket error: {e}")
     
     soc.close()
+
+def parse_message(message):
+    try:
+        data = json.loads(message)
+        print(data)
+    except json.JSONDecodeError:
+        print("Failed to decode JSON packet")
+        return None
 
 def on_close():
     global running, vid, root
