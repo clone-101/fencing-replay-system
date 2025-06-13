@@ -39,20 +39,27 @@ struct dataPacket
 	bool Priority_Right;
 };
 
-bool newData = false;
-unsigned int mesage_pos = 0;
+// bool newData = false;
+unsigned int message_pos = 0;
 
 void setup()
 {
 	Serial.begin(2400);
+	delay(1000);
+	Serial.println();
+	Serial.println();
+	Serial.print("Initializing ");
+	Serial.println(MY_NAME);
 	WiFi.softAP(ssid, password);
 	delay(3000);
 
 	udp.begin(udpPort);
+	Serial.println("Initialized.");
 }
 
 void loop()
 {
+
 	dataPacket packet;
 
 	while (Serial.available() > 0)
@@ -70,7 +77,7 @@ void loop()
 		{
 			message[message_pos++] = inByte;
 		}
-		else if (mesage_pos == (MAX_MESSAGE_LEN - 1))
+		else if (message_pos == (MAX_MESSAGE_LEN - 1))
 		{
 			message[message_pos] = inByte;
 			byte checksum = 0;
@@ -102,7 +109,7 @@ void loop()
 						Serial.print(",");
 					}
 					Serial.print("\n");
-					newData = true;
+					// newData = true;
 
 					// assigns values from message to packet
 					packet.Green_Light = bitRead(message[5], 3);
