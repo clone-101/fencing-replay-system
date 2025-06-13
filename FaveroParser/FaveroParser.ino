@@ -4,14 +4,12 @@
 
 #define MY_NAME "PARSER"
 
-int test = 0;
-
 const char *ssid = "replaySystem";
 const char *password = "12345678";
 
 const unsigned int MAX_MESSAGE_LEN = 10;
 const unsigned int MAX_SERIAL_BUFFER_BYTES = 512;
-const char STARTING_BYTE = 512;
+const char STARTING_BYTE = 255;
 
 unsigned int COUNTER = 0;
 bool MACHINE_OFF = true;
@@ -55,54 +53,133 @@ void setup()
 
 void loop()
 {
-	test++;
 	dataPacket packet;
 
-	// Sample data
-	packet.Right_Score = test;
-	packet.Left_Score = 0;
-	packet.Seconds_Remaining = 0;
-	packet.Minutes_Remaining = 0;
-	packet.Green_Light = true;
-	packet.Red_Light = false;
-	packet.White_Green_Light = true;
-	packet.White_Red_Light = false;
-	packet.Yellow_Green_Light = true;
-	packet.Yellow_Red_Light = false;
-	packet.Yellow_Card_Green = true;
-	packet.Yellow_Card_Red = false;
-	packet.Red_Card_Green = false;
-	packet.Red_Card_Red = true;
-	packet.Priority_Left = true;
-	packet.Priority_Right = false;
+	while (Serial.available() > 0)
+	{
+		static char message[MAX_MESSAGE_LEN];
+		static char prev_message[MAX_MESSAGE_LEN];
 
-	// JSON encode
-	StaticJsonDocument<512> doc;
-	doc["Right_Score"] = packet.Right_Score;
-	doc["Left_Score"] = packet.Left_Score;
-	doc["Seconds_Remaining"] = packet.Seconds_Remaining;
-	doc["Minutes_Remaining"] = packet.Minutes_Remaining;
-	doc["Green_Light"] = packet.Green_Light;
-	doc["Red_Light"] = packet.Red_Light;
-	doc["White_Green_Light"] = packet.White_Green_Light;
-	doc["White_Red_Light"] = packet.White_Red_Light;
-	doc["Yellow_Green_Light"] = packet.Yellow_Green_Light;
-	doc["Yellow_Red_Light"] = packet.Yellow_Red_Light;
-	doc["Yellow_Card_Green"] = packet.Yellow_Card_Green;
-	doc["Yellow_Card_Red"] = packet.Yellow_Card_Red;
-	doc["Red_Card_Green"] = packet.Red_Card_Green;
-	doc["Red_Card_Red"] = packet.Red_Card_Red;
-	doc["Priority_Left"] = packet.Priority_Left;
-	doc["Priority_Right"] = packet.Priority_Right;
+		char inByte = Serial.read();
 
-	char buffer[512];
-	size_t len = serializeJson(doc, buffer);
+		if (inByte == STARTING_BYTE)
+		{
+			message_pos = 0;
+		}
+		if (message_pos < (MAX_MESSAGE_LEN - 1))
+		{
+			message[message_pos++] = inByte;
+		}
+		else if (mesage_pos == (MAX_MESSAGE_LEN - 1))
+		{
+			message[message_pos] = inByte;
+			byte checksum = 0;
 
-	udp.beginPacket(laptopIP, udpPort);
-	udp.write((uint8_t *)buffer, len);
-	udp.endPacket();
+			for (int i = 0; i < MAX_MESSAGE_LEN; i++)
+			{
+				if (i == 9)
+				{
+					checksum = checksum % 256;
+				}
+				else
+				{
+					checksum += message[i];
+				}
+			}
+			if (message[9] == checksum)
+			{
+				COUNTER = 0;
+				MACHINE_OFF = false;
 
-	delay(15000);
+				if (message[1] != prev_message[1] || message[2] != prev_message[2] || message[3] != prev_message[3] ||
+					message[4] != prev_message[4] || message[5] != prev_message[5] || message[6] != prev_message[6] ||
+					message[7] != prev_message[7] || message[8] != prev_message[8])
+				{
+					Serial.print("The message in HEX is:");
+					for (int i = 0; i < MAX_MESSAGE_LEN; i++)
+					{
+						Serial.print(message[i], HEX);
+						Serial.print(",");
+					}
+					Serial.print("\n");
+					newData = true;
+
+					// assigns values from message to packet
+					packet.Green_Light = bitRead(message[5], 3);
+					packet.Red_Light = bitRead(message[5], 2);
+					packet.White_Green_Light = bitRead(message[5], 1);
+					packet.White_Red_Light = bitRead(message[5], 0);
+					packet.Yellow_Green_Light = bitRead(message[5], 4);
+					packet.Yellow_Red_Light = bitRead(message[5], 5);
+
+					packet.Yellow_Card_Green = bitRead(message[8], 2);
+					packet.Yellow_Card_Red = bitRead(message[8], 3);
+					packet.Red_Card_Green = bitRead(message[8], 0);
+					packet.Red_Card_Red = bitRead(message[8], 1);
+
+					packet.Priority_Right = bitRead(message[6], 2);
+					packet.Priority_Left = bitRead(message[6], 3);
+
+					// score and time - has to be converted to an int from hex
+					packet.Right_Score = hex_string_to_int(message[1]);
+					packet.Left_Score = hex_string_to_int(message[2]);
+					packet.Seconds_Remaining = hex_string_to_int(message[3]);
+					packet.Minutes_Remaining = hex_string_to_int(message[4]);
+
+					for (int i = 0; i < MAX_MESSAGE_LEN; i++)
+					{
+						prev_message[i] = message[i];
+					}
+
+					message_pos = 0;
+
+					if (Serial.available() > MAX_SERIAL_BUFFER_BYTES)
+					{
+						Serial.println(".............Clearing the Serial Buffer.............");
+						while (Serial.available() > 0)
+						{
+							char junk = Serial.read();
+						}
+					}
+					// JSON encode
+					StaticJsonDocument<MAX_SERIAL_BUFFER_BYTES> doc;
+					doc["Right_Score"] = packet.Right_Score;
+					doc["Left_Score"] = packet.Left_Score;
+					doc["Seconds_Remaining"] = packet.Seconds_Remaining;
+					doc["Minutes_Remaining"] = packet.Minutes_Remaining;
+					doc["Green_Light"] = packet.Green_Light;
+					doc["Red_Light"] = packet.Red_Light;
+					doc["White_Green_Light"] = packet.White_Green_Light;
+					doc["White_Red_Light"] = packet.White_Red_Light;
+					doc["Yellow_Green_Light"] = packet.Yellow_Green_Light;
+					doc["Yellow_Red_Light"] = packet.Yellow_Red_Light;
+					doc["Yellow_Card_Green"] = packet.Yellow_Card_Green;
+					doc["Yellow_Card_Red"] = packet.Yellow_Card_Red;
+					doc["Red_Card_Green"] = packet.Red_Card_Green;
+					doc["Red_Card_Red"] = packet.Red_Card_Red;
+					doc["Priority_Left"] = packet.Priority_Left;
+					doc["Priority_Right"] = packet.Priority_Right;
+
+					char buffer[MAX_SERIAL_BUFFER_BYTES];
+					size_t len = serializeJson(doc, buffer);
+
+					udp.beginPacket(laptopIP, udpPort);
+					udp.write((uint8_t *)buffer, len);
+					udp.endPacket();
+				}
+			}
+			else
+			{
+				Serial.println("Unexpected Message Position, Resetting to zero.");
+				message_pos = 0;
+			}
+		}
+		else
+		{
+			Serial.println("Wrong checksum! Throwing it out.");
+			message_pos = 0;
+		}
+	}
 }
 
 unsigned int hex_string_to_int(unsigned char msg)
