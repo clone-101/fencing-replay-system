@@ -13,6 +13,7 @@ class VideoManager:
 		self.running = True
 		self.camera_index = camera_index
 		self.frame_buffer = deque(maxlen=int(fps * buffer_seconds))
+		self.frame_timestamps = deque(maxlen=int(fps * buffer_seconds))
 		self.vid = cv2.VideoCapture(camera_index)
 		self.vid.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
 		self.vid.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
@@ -32,15 +33,21 @@ class VideoManager:
 			ret, frame = self.vid.read()
 			if ret:
 				self.frame_buffer.append(frame.copy())
+				self.frame_timestamps.append(time.time())
 				self.display_frame(frame)
 			time.sleep(1 / self.fps)
 
 	def display_frame(self, frame):
 		frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-		img = Image.fromarray(frame)
+		resized = cv2.resize(frame, (self.frame_width, self.frame_height))
+		img = Image.fromarray(resized)
 		imgtk = ImageTk.PhotoImage(image=img)
 		self.root.after(0, self._update_canvas, imgtk)
 
+	def resize_canvas(self, event):
+		self.frame_width = event.width
+		self.frame_height = event.height
+	
 	def _update_canvas(self, imgtk):
 		self.canvas.create_image(0, 0, image=imgtk, anchor=tk.NW)
 		self.canvas.image = imgtk
@@ -53,12 +60,15 @@ class VideoManager:
 		if not frames:
 			print("No frames to save.")
 			return
+		# Calculate actual FPS
+		actual_fps = self.fps
+		if hasattr(self, 'frame_timestamps') and len(self.frame_timestamps) > 1:
+			duration = self.frame_timestamps[-1] - self.frame_timestamps[0]
+			actual_fps = len(self.frame_timestamps) / duration if duration > 0 else self.fps
 		fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 		height, width, _ = frames[0].shape
-		out = cv2.VideoWriter(filename, fourcc, self.fps, (width, height))
+		out = cv2.VideoWriter(filename, fourcc, actual_fps, (width, height))
 		for frame in frames:
 			out.write(frame)
 		out.release()
 		print(f"Saved last 10 seconds to {filename}")
-	
-
