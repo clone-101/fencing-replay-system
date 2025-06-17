@@ -66,6 +66,7 @@ def main():
 
     # canvas for video
 	canvas = tk.Canvas(root, width=video.frame_width, height=video.frame_height)
+	canvas.bind("<Configure>", lambda event: video.resize_canvas(event))
 	video.canvas = canvas
 	canvas.pack()
 
@@ -73,7 +74,8 @@ def main():
 	controls = ttk.Frame(root)
 	controls.pack()
 	btn_save = ttk.Button(controls, text="Save Last 10s", command=video.save_video)
-	btn_save.grid(row=0, column=0, padx=10, pady=5)
+	# btn_save.grid(row=0, column=0, padx=10, pady=5)
+	btn_save.pack()
 
 	# start video thread
 	threading.Thread(target=video.update_frame, daemon=True).start()
