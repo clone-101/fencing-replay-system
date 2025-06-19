@@ -6,13 +6,13 @@ This project is a light weight desktop application that can be used by fencing r
 
 ## Requirements
 
-### Hardware
-
 ### Software Dependencies
 
-## Help
 
-## Authors
+### Hardware
+
+
+## Help
 
 ## License
 
