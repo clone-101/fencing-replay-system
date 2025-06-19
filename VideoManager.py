@@ -12,6 +12,7 @@ class VideoManager:
 	def __init__(self, root=None, canvas=None, camera_index=0, fps=30, buffer_seconds=120, frame_width=1920, frame_height=1080):
 		self.running = True
 		self.camera_index = camera_index
+		self.buffer_seconds = buffer_seconds
 		self.frame_buffer = deque(maxlen=int(fps * buffer_seconds))
 		self.frame_timestamps = deque(maxlen=int(fps * buffer_seconds))
 		self.vid = cv2.VideoCapture(camera_index)
@@ -56,7 +57,8 @@ class VideoManager:
 		os.makedirs("recordings", exist_ok=True)
 		timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 		filename = f"recordings/{timestamp}.mp4"
-		frames = list(self.frame_buffer)
+		now = time.time()
+		frames = [f for f, t in zip(self.frame_buffer, self.frame_timestamps) if now - t <= self.buffer_seconds]
 		if not frames:
 			print("No frames to save.")
 			return
