@@ -1,4 +1,4 @@
-from video_manager import VideoManager
+from src.utils.video_manager import VideoManager
 from src.ui.settings_window import SettingsWindow
 from tkinter import ttk
 import tkinter as tk
