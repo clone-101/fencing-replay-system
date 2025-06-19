@@ -1,14 +1,24 @@
 from tkinter import ttk, Toplevel, Menu
 import tkinter as tk
 import platform
+import threading
 from src.ui.settings_window import SettingsWindow
+from src.utils.video_manager import VideoManager
 # from src.utils.settings import load_settings, save_settings
+
+# constants
+DEFAULT_FPS = 30
+BUFFER_SECONDS = 120
+DEFAULT_FRAME_WIDTH = 1920
+DEFAULT_FRAME_HEIGHT = 1080
+DEFAULT_PORT = 5050
 
 class MainWindow:
     def __init__(self, root):
         self.root = root
         self.root.title("Fencing Replay System")
         self.root.geometry("800x600")
+        self.video = VideoManager(root=root)
 
         self.create_widgets()
         self.create_menu()
@@ -23,10 +33,18 @@ class MainWindow:
         label = ttk.Label(master=self.root, text="Welcome to the Fencing Replay System!", font=("Arial", 16))
         label.pack()
 
+        canvas = tk.Canvas(self.root, width=self.video.frame_width, height=self.video.frame_height)
+        canvas.bind("<Configure>", lambda event: self.video.resize_canvas(event))
+        self.video.canvas = canvas
+        canvas.pack()
+
+
         frame = ttk.Frame(master=self.root)
-        replay_button = ttk.Button(master=frame, text="Replay", command=self.replay_video)
+        replay_button = ttk.Button(master=frame, text="Save Video", command=self.video.save_video)
         replay_button.pack()
         frame.pack(pady=10)
+
+        threading.Thread(target=self.video.update_frame, daemon=True).start()
 
     def create_menu(self):
         menubar = Menu(self.root)
