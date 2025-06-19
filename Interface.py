@@ -1,4 +1,5 @@
-from VideoManager import VideoManager
+from video_manager import VideoManager
+from src.ui.settings_window import SettingsWindow
 from tkinter import ttk
 import tkinter as tk
 import threading
@@ -57,12 +58,15 @@ def on_close():
 	video.running = False
 	root.destroy()
 
+def open_settings():
+    SettingsWindow(root)
+
 def main():
 	global root, canvas, video
 
 	root = tk.Tk()
 	root.title("Fencing Replay System")
-	video = VideoManager(root=root)
+	video = VideoManager(root=root, buffer_seconds=10)
 
     # canvas for video
 	canvas = tk.Canvas(root, width=video.frame_width, height=video.frame_height)
@@ -85,6 +89,7 @@ def main():
 
 	# handle window close
 	root.protocol("WM_DELETE_WINDOW", on_close)
+	root.bind('<Control-comma>', lambda e: open_settings())
 	root.mainloop()
 
 if __name__ == "__main__":
