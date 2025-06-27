@@ -1,2 +1,2 @@
-opencv-python
-pillow
+opencv-python==4.10.0
+pillow==10.4.0
