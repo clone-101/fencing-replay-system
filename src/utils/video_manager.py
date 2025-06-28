@@ -27,6 +27,7 @@ class VideoManager:
 		self.port = port
 		self.canvas = canvas
 		self.root = root
+		self.data = None
 
 	def __del__(self):
 		if hasattr(self, 'vid') and self.vid is not None:
@@ -77,29 +78,3 @@ class VideoManager:
 			out.write(frame)
 		out.release()
 		print(f"Saved last 10 seconds to {filename}")
-
-	def listen_for_udp(self):
-		soc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		soc.bind(('0.0.0.0', self.port))
-
-		while self.running:
-			try:
-				data, _ = soc.recvfrom(1024)
-				udp_message = self._parse_message(data.decode('utf-8'))
-				self.save_video()
-			except socket.error as e:
-				if not self.running:
-					break
-				print(f"Socket error: {e}")
-		
-		soc.close()
-
-	def _parse_message(message):
-		try:
-			data = json.loads(message)
-			# FIXME: remove print in production
-			print(data)
-		except json.JSONDecodeError:
-			print("Failed to decode JSON packet")
-			data = None
-		return data
