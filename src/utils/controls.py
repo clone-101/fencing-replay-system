@@ -1,8 +1,12 @@
 import tkinter as tk
 
-def bind_shortcuts(root, open_settings_callback, replay_callback):
-    root.bind('<Control-comma>', lambda e: open_settings_callback())
-    root.bind('<Control-r>', lambda e: replay_callback())
-    # root.bind('<Control-p>', lambda e: pause_video())
-    # root.bind('<Control-s>', lambda e: save_last_10_seconds())
+def bind_shortcuts(main_window):
+    main_window.root.protocol("WM_DELETE_WINDOW", main_window.on_close)
+
+    if main_window.is_mac:
+        main_window.root.createcommand('tk::mac::ShowPreferences', main_window.open_settings)
+    else:
+        main_window.root.bind('<Control-comma>', lambda e: main_window.open_settings())
+
+    main_window.root.bind('<Control-r>', lambda e: main_window.replay_video())
 

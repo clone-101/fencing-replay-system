@@ -5,6 +5,7 @@ import threading
 from ui.settings_window import SettingsWindow
 from utils.video_manager import VideoManager
 from utils.udp import UDPListener
+import utils.controls as controls
 # from src.utils.settings import load_settings, save_settings
 
 # constants
@@ -30,11 +31,8 @@ class MainWindow:
         self.create_menu()
 
         # main window event bindings
-        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
-        if self.is_mac:
-            self.root.createcommand('tk::mac::ShowPreferences', self.open_settings)
-        else:
-            self.root.bind('<Control-comma>', lambda e: self.open_settings())
+        controls.bind_shortcuts(self)
+        
         
 
     def create_widgets(self):
