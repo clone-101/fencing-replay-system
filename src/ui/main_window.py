@@ -19,19 +19,23 @@ class MainWindow:
         self.root = root
         self.root.title("Fencing Replay System")
         self.root.geometry("800x600")
-        self.video = VideoManager(root=root)
+        self.is_mac = platform.system() == "Darwin"
 
-        self.upd_listener = UDPListener(port=DEFAULT_PORT, callback=self.handle_upd_message)
+        self.video = VideoManager(root=root)
+        self.video.start()
+        self.upd_listener = UDPListener(port=DEFAULT_PORT, callback=self.handle_udp_message)
         self.upd_listener.start()
 
         self.create_widgets()
         self.create_menu()
 
-        self.is_mac = platform.system() == "Darwin"
+        # main window event bindings
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         if self.is_mac:
             self.root.createcommand('tk::mac::ShowPreferences', self.open_settings)
         else:
             self.root.bind('<Control-comma>', lambda e: self.open_settings())
+        
 
     def create_widgets(self):
         label = ttk.Label(master=self.root, text="Welcome to the Fencing Replay System!", font=("Arial", 16))
@@ -42,13 +46,10 @@ class MainWindow:
         self.video.canvas = canvas
         canvas.pack()
 
-
         frame = ttk.Frame(master=self.root)
         replay_button = ttk.Button(master=frame, text="Save Video", command=self.video.save_video)
         replay_button.pack()
         frame.pack(pady=10)
-
-        threading.Thread(target=self.video.update_frame, daemon=True).start()
 
     def create_menu(self):
         menubar = Menu(self.root)
@@ -67,6 +68,11 @@ class MainWindow:
     def handle_udp_message(self, msg):
         # FIXME: Implement UDP message handling
         print(f"Received UDP message: {msg}")
+
+    def on_close(self):
+        self.video.stop()
+        self.upd_listener.stop()
+        self.root.destroy()
 
 def main():
     root = tk.Tk()

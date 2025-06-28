@@ -3,15 +3,15 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 from datetime import datetime
 from collections import deque
-import socket
-import json
 import cv2
+import threading
 import time
 import os
 
 
-class VideoManager:
-	def __init__(self, root=None, canvas=None, camera_index=0, fps=30, buffer_seconds=120, frame_width=1920, frame_height=1080, port=5050):
+class VideoManager(threading.Thread):
+	def __init__(self, root=None, canvas=None, camera_index=0, fps=30, buffer_seconds=120, frame_width=1920, frame_height=1080):
+		super().__init__()
 		self.running = True
 		self.camera_index = camera_index
 		self.buffer_seconds = buffer_seconds
@@ -24,14 +24,20 @@ class VideoManager:
 		self.frame_height = int(self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
 		self.fps = self.vid.get(cv2.CAP_PROP_FPS)
 		self.fps = min(self.fps, fps) if self.fps else fps
-		self.port = port
 		self.canvas = canvas
 		self.root = root
 		self.data = None
 
 	def __del__(self):
+		self.running = False
 		if hasattr(self, 'vid') and self.vid is not None:
 			self.vid.release()
+
+	def run(self):
+		self.update_frame()
+
+	def stop(self):
+		self.running = False
 	
 	def update_frame(self):
 		while self.running:
