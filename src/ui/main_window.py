@@ -2,8 +2,8 @@ from tkinter import ttk, Toplevel, Menu
 import tkinter as tk
 import platform
 import threading
-from src.ui.settings_window import SettingsWindow
-from src.utils.video_manager import VideoManager
+from ui.settings_window import SettingsWindow
+from utils.video_manager import VideoManager
 # from src.utils.settings import load_settings, save_settings
 
 # constants
