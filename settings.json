@@ -1,0 +1,8 @@
+{
+    "video_width": 1920,
+    "video_height": 1080,
+    "fps": 32,
+    "buffer_seconds": 120,
+    "udp_port": 5050,
+    "wemos_ip": null
+}

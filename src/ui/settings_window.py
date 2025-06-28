@@ -1,11 +1,12 @@
 from tkinter import Toplevel, ttk
 
 class SettingsWindow:
-    def __init__(self, root):
+    def __init__(self, root, settings, on_save):
+        self.settings = settings
+        self.on_save = on_save
         self.window = Toplevel(root)
         self.window.title("Settings")
         self.window.geometry("400x300")
-
         self.create_widgets()
 
     def create_widgets(self):
@@ -31,8 +32,17 @@ class SettingsWindow:
         save_button.pack(pady=20)
 
     def save_settings(self):
-        frame_rate = self.frame_rate_entry.get()
-        resolution = self.resolution_entry.get()
-        # Here you would typically save the settings to a file or apply them
-        print(f"Settings saved: Frame Rate = {frame_rate}, Resolution = {resolution}")
+        frame_rate = int(self.frame_rate_entry.get())
+        resolution = self.resolution_entry.get().lower().split('x')
+        if len(resolution) == 2 and resolution[0].isdigit() and resolution[1].isdigit():
+            width, height = int(resolution[0]), int(resolution[1])
+        else:
+            width, height = 1920, 1080 # fallback value
+        
+        new_settings = {
+            "fps": frame_rate,
+            "video_width": width,
+            "video_height": height,
+        }
+        self.on_save(new_settings)
         self.window.destroy()

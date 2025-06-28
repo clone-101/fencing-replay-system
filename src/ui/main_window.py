@@ -6,6 +6,7 @@ from ui.settings_window import SettingsWindow
 from utils.video_manager import VideoManager
 from utils.udp import UDPListener
 import utils.controls as controls
+import utils.settings as settings
 # from src.utils.settings import load_settings, save_settings
 
 # constants
@@ -20,11 +21,13 @@ class MainWindow:
         self.root = root
         self.root.title("Fencing Replay System")
         self.root.geometry("800x600")
+        self.canvas = None
         self.is_mac = platform.system() == "Darwin"
 
-        self.video = VideoManager(root=root)
-        self.video.start()
-        self.upd_listener = UDPListener(port=DEFAULT_PORT, callback=self.handle_udp_message)
+        # load settings
+        self.settings = settings.load_settings()
+        
+        self.upd_listener = UDPListener(port=self.settings["udp_port"], callback=self.handle_udp_message)
         self.upd_listener.start()
 
         self.create_widgets()
@@ -34,15 +37,22 @@ class MainWindow:
         controls.bind_shortcuts(self)
         
         
+    def initialize_video(self):
+        if self.canvas:
+            self.canvas.destroy()
+
+        self.video = VideoManager(root=self.root, fps=self.settings["fps"], buffer_seconds=self.settings["buffer_seconds"], frame_width=self.settings["video_width"], frame_height=self.settings["video_height"])
+        self.canvas = tk.Canvas(self.root, width=self.video.frame_width, height=self.video.frame_height)
+        self.canvas.bind("<Configure>", lambda event: self.video.resize_canvas(event))
+        self.video.canvas = self.canvas
+        self.canvas.pack()
+        self.video.start()
 
     def create_widgets(self):
         label = ttk.Label(master=self.root, text="Welcome to the Fencing Replay System!", font=("Arial", 16))
         label.pack()
 
-        canvas = tk.Canvas(self.root, width=self.video.frame_width, height=self.video.frame_height)
-        canvas.bind("<Configure>", lambda event: self.video.resize_canvas(event))
-        self.video.canvas = canvas
-        canvas.pack()
+        self.initialize_video()
 
         frame = ttk.Frame(master=self.root)
         replay_button = ttk.Button(master=frame, text="Save Video", command=self.video.save_video)
@@ -57,7 +67,24 @@ class MainWindow:
         self.root.config(menu=menubar)
 
     def open_settings(self):
-         SettingsWindow(self.root)	
+         SettingsWindow(self.root, self.settings, self.on_settings_saved)	
+
+    def on_settings_saved(self, new_settings):
+        self.settings.update(new_settings)
+        settings.save_settings(self.settings)
+        self.video.stop()
+        self._wait_for_video_thread()
+        # FIXME: remove print in production
+        print(f"Settings updated: {self.settings}")
+
+    def _wait_for_video_thread(self):
+        if self.video and self.video.is_alive():
+            self.root.after(50, self._wait_for_video_thread)
+        else:
+            if hasattr(self.video, 'vid') and self.video.vid is not None:
+                self.video.vid.release()
+            self.video = None
+            self.initialize_video()
 
     def replay_video(self):
         # FIXME: Implement replay functionality
