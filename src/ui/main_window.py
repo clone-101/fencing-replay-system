@@ -4,6 +4,7 @@ import platform
 import threading
 from ui.settings_window import SettingsWindow
 from utils.video_manager import VideoManager
+from utils.udp import UDPListener
 # from src.utils.settings import load_settings, save_settings
 
 # constants
@@ -19,6 +20,9 @@ class MainWindow:
         self.root.title("Fencing Replay System")
         self.root.geometry("800x600")
         self.video = VideoManager(root=root)
+
+        self.upd_listener = UDPListener(port=DEFAULT_PORT, callback=self.handle_upd_message)
+        self.upd_listener.start()
 
         self.create_widgets()
         self.create_menu()
@@ -57,8 +61,12 @@ class MainWindow:
          SettingsWindow(self.root)	
 
     def replay_video(self):
-        # Placeholder for replay functionality
+        # FIXME: Implement replay functionality
         print("Replay functionality not implemented yet.")
+    
+    def handle_udp_message(self, msg):
+        # FIXME: Implement UDP message handling
+        print(f"Received UDP message: {msg}")
 
 def main():
     root = tk.Tk()

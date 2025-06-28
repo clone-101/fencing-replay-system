@@ -4,7 +4,7 @@ import threading
 
 JSON_KEYS = ['Green_Light', 'Red_light', 'White_Green_Light', 'White_Red_Light', 'Yellow_Green_Light', 'Yellow_Red_Light']
 
-class UdpListener(threading.Thread):
+class UDPListener(threading.Thread):
     def __init__(self, port, callback):
         super().__init__(daemon=True)
         self.port = port
