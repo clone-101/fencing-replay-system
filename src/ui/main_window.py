@@ -20,7 +20,9 @@ class MainWindow:
     def __init__(self, root):
         self.root = root
         self.root.title("Fencing Replay System")
-        self.root.geometry("800x600")
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        self.root.geometry(f"{screen_width}x{screen_height}")
         self.canvas = None
         self.is_mac = platform.system() == "Darwin"
 
