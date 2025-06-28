@@ -11,7 +11,7 @@ import os
 
 
 class VideoManager:
-	def __init__(self, root=None, canvas=None, camera_index=0, fps=30, buffer_seconds=120, frame_width=1920, frame_height=1080):
+	def __init__(self, root=None, canvas=None, camera_index=0, fps=30, buffer_seconds=120, frame_width=1920, frame_height=1080, port=5050):
 		self.running = True
 		self.camera_index = camera_index
 		self.buffer_seconds = buffer_seconds
@@ -24,6 +24,7 @@ class VideoManager:
 		self.frame_height = int(self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
 		self.fps = self.vid.get(cv2.CAP_PROP_FPS)
 		self.fps = min(self.fps, fps) if self.fps else fps
+		self.port = port
 		self.canvas = canvas
 		self.root = root
 
