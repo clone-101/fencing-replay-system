@@ -9,13 +9,6 @@ import utils.controls as controls
 import utils.settings as settings
 # from src.utils.settings import load_settings, save_settings
 
-# constants
-DEFAULT_FPS = 30
-BUFFER_SECONDS = 120
-DEFAULT_FRAME_WIDTH = 1920
-DEFAULT_FRAME_HEIGHT = 1080
-DEFAULT_PORT = 5050
-
 class MainWindow:
     def __init__(self, root):
         self.root = root
