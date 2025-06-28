@@ -2,7 +2,7 @@ import json
 import socket
 import threading
 
-JSON_KEYS = ['Green_Light', 'Red_light', 'White_Green_Light', 'White_Red_Light', 'Yellow_Green_Light', 'Yellow_Red_Light']
+JSON_KEYS = ['Green_Light', 'Red_Light', 'White_Green_Light', 'White_Red_Light', 'Yellow_Green_Light', 'Yellow_Red_Light']
 
 class UDPListener(threading.Thread):
     def __init__(self, port, callback):
