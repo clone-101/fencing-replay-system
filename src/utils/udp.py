@@ -39,7 +39,10 @@ class UDPMessage:
 		else:
 			raise ValueError("Invalid message")
 		
-	
+	def __str__(self):
+		return f"Lights: green={self.green}, red={self.red}, white_green={self.white_green}, white_red={self.white_red}, yellow_green={self.yellow_green}, yellow_red={self.yellow_red}"
+
+
 	def __parse_message(self, message):
 		try:
 			data = json.loads(message)
