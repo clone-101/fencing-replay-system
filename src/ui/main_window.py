@@ -22,7 +22,7 @@ class MainWindow:
         # load settings
         self.settings = settings.load_settings()
         
-        self.upd_listener = UDPListener(port=self.settings["udp_port"], callback=self.handle_udp_message)
+        self.upd_listener = UDPListener(port=self.settings["udp_port"], callback=self.handle_udp_message, sender_ip=self.settings["wemos_ip"])
         self.upd_listener.start()
 
         self.create_widgets()
