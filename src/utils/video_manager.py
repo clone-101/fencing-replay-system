@@ -1,6 +1,3 @@
-import tkinter as tk
-from tkinter import ttk
-from PIL import Image, ImageTk
 from datetime import datetime
 from collections import deque
 import cv2
@@ -10,7 +7,7 @@ import os
 
 
 class VideoManager(threading.Thread):
-	def __init__(self, root=None, canvas=None, camera_index=0, fps=30, buffer_seconds=120, frame_width=1920, frame_height=1080):
+	def __init__(self, camera_index=0, fps=30, buffer_seconds=120, frame_width=1920, frame_height=1080):
 		super().__init__()
 		self.running = True
 		self.camera_index = camera_index
@@ -24,9 +21,9 @@ class VideoManager(threading.Thread):
 		self.frame_height = int(self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
 		self.fps = self.vid.get(cv2.CAP_PROP_FPS)
 		self.fps = min(self.fps, fps) if self.fps else fps
-		self.canvas = canvas
-		self.root = root
 		self.data = None
+		self._latest = None
+		self._latest_lock = threading.Lock()
 
 	def __del__(self):
 		self.running = False
@@ -43,25 +40,17 @@ class VideoManager(threading.Thread):
 		while self.running:
 			ret, frame = self.vid.read()
 			if ret:
+				now = time.time()
 				self.frame_buffer.append(frame.copy())
-				self.frame_timestamps.append(time.time())
-				self.display_frame(frame)
+				self.frame_timestamps.append(now)
+				with self._latest_lock:
+					self._latest = (now, frame)
 			time.sleep(1 / self.fps)
 
-	def display_frame(self, frame):
-		frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-		resized = cv2.resize(frame, (self.frame_width, self.frame_height))
-		img = Image.fromarray(resized)
-		imgtk = ImageTk.PhotoImage(image=img)
-		self.root.after(0, self._update_canvas, imgtk)
-
-	def resize_canvas(self, event):
-		self.frame_width = event.width
-		self.frame_height = event.height
-	
-	def _update_canvas(self, imgtk):
-		self.canvas.create_image(0, 0, image=imgtk, anchor=tk.NW)
-		self.canvas.image = imgtk
+	def latest(self):
+		"""Return (timestamp, frame) for the most recent frame, or None if none captured yet."""
+		with self._latest_lock:
+			return self._latest
 
 	def save_video(self):
 		os.makedirs("recordings", exist_ok=True)
