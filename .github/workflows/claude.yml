@@ -5,8 +5,6 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
-  issues:
-    types: [opened, assigned]
   pull_request_review:
     types: [submitted]
 
@@ -15,8 +13,7 @@ jobs:
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,6 +26,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
 
       - name: Run Claude Code
         id: claude
@@ -46,5 +51,10 @@ jobs:
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr *)'
+          # Model comes from the issue/PR label: model:opus, model:haiku, otherwise Sonnet.
+          claude_args: >-
+            --model ${{ contains(github.event.issue.labels.*.name, 'model:opus') && 'claude-opus-5-5'
+            || contains(github.event.issue.labels.*.name, 'model:haiku') && 'claude-haiku-4-5-20251001'
+            || 'claude-sonnet-5-5' }}
+            --allowedTools "Bash(pytest:*),Bash(python:*),Bash(pip install:*)"
 
