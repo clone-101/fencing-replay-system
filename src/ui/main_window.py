@@ -14,6 +14,7 @@ from utils import export
 # from src.utils.settings import load_settings, save_settings
 
 RECORDINGS_DIR = Path(__file__).resolve().parents[2] / "recordings"
+CAPTURE_KEYS = ("fps", "video_width", "video_height", "camera_index", "buffer_seconds")
 
 class MainWindow:
     def __init__(self, root):
@@ -25,6 +26,8 @@ class MainWindow:
         self.video = None
         self._last_frame_ts = None
         self._tick_id = None
+        self._wait_id = None
+        self._stopping = None
         self.is_mac = platform.system() == "Darwin"
 
         # load settings
@@ -40,11 +43,12 @@ class MainWindow:
         controls.bind_shortcuts(self)
         
         
-    def initialize_video(self):
+    def _start_capture(self):
         self.view.show_message("Waiting for camera...")
         self._last_frame_ts = None
-        self.video = VideoManager(camera_index=self.settings["camera_index"], fps=self.settings["fps"], buffer_seconds=self.settings["buffer_seconds"], frame_width=self.settings["video_width"], frame_height=self.settings["video_height"])
-        self.video.start()
+        video = VideoManager(camera_index=self.settings["camera_index"], fps=self.settings["fps"], buffer_seconds=self.settings["buffer_seconds"], frame_width=self.settings["video_width"], frame_height=self.settings["video_height"])
+        video.start()
+        self.video = video
 
     def create_widgets(self):
         label = ttk.Label(master=self.root, text="Welcome to the Fencing Replay System!", font=("Arial", 16))
@@ -58,7 +62,7 @@ class MainWindow:
 
         self.view = VideoView(self.root)
 
-        self.initialize_video()
+        self._start_capture()
         self._tick_live()
 
     def _tick_live(self):
@@ -103,21 +107,29 @@ class MainWindow:
          SettingsWindow(self.root, self.settings, self.on_settings_saved)	
 
     def on_settings_saved(self, new_settings):
+        capture_changed = any(k in new_settings and new_settings[k] != self.settings.get(k) for k in CAPTURE_KEYS)
         self.settings.update(new_settings)
         settings.save_settings(self.settings)
-        self.video.stop()
-        self._wait_for_video_thread()
         # FIXME: remove print in production
         print(f"Settings updated: {self.settings}")
+        # a restart already in progress picks up the latest self.settings
+        if capture_changed and self._stopping is None:
+            self._stopping = self.video
+            if self._stopping is not None:
+                self._stopping.stop()
+            self.view.show_message("Restarting camera...")
+            self._wait_for_video_thread()
 
     def _wait_for_video_thread(self):
-        if self.video and self.video.is_alive():
-            self.root.after(50, self._wait_for_video_thread)
-        else:
-            if hasattr(self.video, 'vid') and self.video.vid is not None:
-                self.video.vid.release()
-            self.video = None
-            self.initialize_video()
+        old = self._stopping
+        if old is not None and old.is_alive():
+            self._wait_id = self.root.after(50, self._wait_for_video_thread)
+            return
+        self._wait_id = None
+        if old is not None and old.vid is not None:
+            old.vid.release()
+        self._stopping = None
+        self._start_capture()
 
     def replay_video(self):
         # FIXME: Implement replay functionality
@@ -130,8 +142,13 @@ class MainWindow:
     def on_close(self):
         if self._tick_id is not None:
             self.root.after_cancel(self._tick_id)
-        if self.video:
-            self.video.stop()
+        if self._wait_id is not None:
+            self.root.after_cancel(self._wait_id)
+        # stop whatever instance exists, including one still shutting down mid-restart
+        for video in {self._stopping, self.video} - {None}:
+            video.stop()
+            if video.is_alive():
+                video.join(timeout=2)
         self.upd_listener.stop()
         self.root.destroy()
 
