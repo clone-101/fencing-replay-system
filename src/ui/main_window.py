@@ -43,7 +43,7 @@ class MainWindow:
     def initialize_video(self):
         self.view.show_message("Waiting for camera...")
         self._last_frame_ts = None
-        self.video = VideoManager(fps=self.settings["fps"], buffer_seconds=self.settings["buffer_seconds"], frame_width=self.settings["video_width"], frame_height=self.settings["video_height"])
+        self.video = VideoManager(camera_index=self.settings["camera_index"], fps=self.settings["fps"], buffer_seconds=self.settings["buffer_seconds"], frame_width=self.settings["video_width"], frame_height=self.settings["video_height"])
         self.video.start()
 
     def create_widgets(self):

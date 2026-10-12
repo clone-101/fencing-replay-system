@@ -10,7 +10,8 @@ DEFAULT_SETTINGS = {
     "fps": 30,
     "buffer_seconds": 20,
     "udp_port": 5050,
-    "wemos_ip": None
+    "wemos_ip": None,
+    "camera_index": 0
 }
 
 # field -> (min, max); max None means unbounded above
@@ -20,6 +21,7 @@ INT_RANGES = {
     "fps": (1, 120),
     "buffer_seconds": (2, 60),
     "udp_port": (1024, 65535),
+    "camera_index": (0, None),
 }
 
 
