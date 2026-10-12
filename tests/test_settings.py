@@ -33,6 +33,7 @@ def test_validate_ip_accepted():
     ("fps", 0), ("fps", 121), ("fps", "30"), ("fps", True), ("fps", 29.5),
     ("video_width", 0), ("video_height", -5), ("video_width", "1920"),
     ("buffer_seconds", 1), ("buffer_seconds", 61),
+    ("camera_index", -1), ("camera_index", "0"), ("camera_index", True),
     ("udp_port", 1023), ("udp_port", 65536),
     ("wemos_ip", "999.1.1.1"), ("wemos_ip", "abc"), ("wemos_ip", "1.2.3"), ("wemos_ip", 5),
 ])
