@@ -1,19 +1,28 @@
 from datetime import datetime
-from collections import deque
 import cv2
+import numpy as np
 import threading
 import time
 import os
 
+from utils.frame_buffer import FrameBuffer
+
+MAX_BUFFER_BYTES = 1024 ** 3  # per camera
+JPEG_QUALITY = 90
+
+
+def decode(jpeg_bytes):
+	"""Decode JPEG bytes from the FrameBuffer back into a BGR frame."""
+	return cv2.imdecode(np.frombuffer(jpeg_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+
 
 class VideoManager(threading.Thread):
-	def __init__(self, camera_index=0, fps=30, buffer_seconds=120, frame_width=1920, frame_height=1080):
+	def __init__(self, camera_index=0, fps=30, buffer_seconds=20, frame_width=1920, frame_height=1080):
 		super().__init__()
 		self.running = True
 		self.camera_index = camera_index
 		self.buffer_seconds = buffer_seconds
-		self.frame_buffer = deque(maxlen=int(fps * buffer_seconds))
-		self.frame_timestamps = deque(maxlen=int(fps * buffer_seconds))
+		self.buffer = FrameBuffer(max_seconds=buffer_seconds, max_bytes=MAX_BUFFER_BYTES)
 		self.vid = cv2.VideoCapture(camera_index)
 		self.vid.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
 		self.vid.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
@@ -40,9 +49,10 @@ class VideoManager(threading.Thread):
 		while self.running:
 			ret, frame = self.vid.read()
 			if ret:
-				now = time.time()
-				self.frame_buffer.append(frame.copy())
-				self.frame_timestamps.append(now)
+				now = time.monotonic()
+				ok, jpeg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
+				if ok:
+					self.buffer.append(now, jpeg.tobytes())
 				with self._latest_lock:
 					self._latest = (now, frame)
 			time.sleep(1 / self.fps)
@@ -56,16 +66,12 @@ class VideoManager(threading.Thread):
 		os.makedirs("recordings", exist_ok=True)
 		timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 		filename = f"recordings/{timestamp}.mp4"
-		now = time.time()
-		frames = [f for f, t in zip(self.frame_buffer, self.frame_timestamps) if now - t <= self.buffer_seconds]
-		if not frames:
+		snapshot = self.buffer.snapshot()
+		if not snapshot:
 			print("No frames to save.")
 			return
-		# Calculate actual FPS
-		actual_fps = self.fps
-		if hasattr(self, 'frame_timestamps') and len(self.frame_timestamps) > 1:
-			duration = self.frame_timestamps[-1] - self.frame_timestamps[0]
-			actual_fps = len(self.frame_timestamps) / duration if duration > 0 else self.fps
+		actual_fps = self.buffer.measured_fps() or self.fps
+		frames = [decode(data) for _, data in snapshot]
 		fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 		height, width, _ = frames[0].shape
 		out = cv2.VideoWriter(filename, fourcc, actual_fps, (width, height))
