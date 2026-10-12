@@ -3,6 +3,7 @@ import tkinter as tk
 import platform
 import threading
 from ui.settings_window import SettingsWindow
+from ui.video_view import VideoView
 from utils.video_manager import VideoManager
 from utils.udp import UDPListener
 import utils.controls as controls
@@ -16,7 +17,9 @@ class MainWindow:
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         self.root.geometry(f"{screen_width}x{screen_height}")
-        self.canvas = None
+        self.video = None
+        self._last_frame_ts = None
+        self._tick_id = None
         self.is_mac = platform.system() == "Darwin"
 
         # load settings
@@ -33,26 +36,37 @@ class MainWindow:
         
         
     def initialize_video(self):
-        if self.canvas:
-            self.canvas.destroy()
-
-        self.video = VideoManager(root=self.root, fps=self.settings["fps"], buffer_seconds=self.settings["buffer_seconds"], frame_width=self.settings["video_width"], frame_height=self.settings["video_height"])
-        self.canvas = tk.Canvas(self.root, width=self.video.frame_width, height=self.video.frame_height)
-        self.canvas.bind("<Configure>", lambda event: self.video.resize_canvas(event))
-        self.video.canvas = self.canvas
-        self.canvas.pack()
+        self.view.show_message("Waiting for camera...")
+        self._last_frame_ts = None
+        self.video = VideoManager(fps=self.settings["fps"], buffer_seconds=self.settings["buffer_seconds"], frame_width=self.settings["video_width"], frame_height=self.settings["video_height"])
         self.video.start()
 
     def create_widgets(self):
         label = ttk.Label(master=self.root, text="Welcome to the Fencing Replay System!", font=("Arial", 16))
         label.pack()
 
-        self.initialize_video()
-
+        # pack the buttons before the view so the expanding canvas can't push them off-screen
         frame = ttk.Frame(master=self.root)
-        replay_button = ttk.Button(master=frame, text="Save Video", command=self.video.save_video)
+        replay_button = ttk.Button(master=frame, text="Save Video", command=self.save_video)
         replay_button.pack()
-        frame.pack(pady=10)
+        frame.pack(side="bottom", pady=10)
+
+        self.view = VideoView(self.root)
+
+        self.initialize_video()
+        self._tick_live()
+
+    def _tick_live(self):
+        # runs on the Tk thread; pulls the newest frame from the capture thread
+        latest = self.video.latest() if self.video else None
+        if latest is not None and latest[0] != self._last_frame_ts:
+            self._last_frame_ts, frame = latest
+            self.view.show(frame)
+        self._tick_id = self.root.after(33, self._tick_live)
+
+    def save_video(self):
+        if self.video:
+            self.video.save_video()
 
     def create_menu(self):
         menubar = Menu(self.root)
@@ -90,7 +104,10 @@ class MainWindow:
         print(f"Received UDP message: {msg}")
 
     def on_close(self):
-        self.video.stop()
+        if self._tick_id is not None:
+            self.root.after_cancel(self._tick_id)
+        if self.video:
+            self.video.stop()
         self.upd_listener.stop()
         self.root.destroy()
 
