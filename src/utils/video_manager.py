@@ -1,9 +1,7 @@
-from datetime import datetime
 import cv2
 import numpy as np
 import threading
 import time
-import os
 
 from utils.frame_buffer import FrameBuffer
 
@@ -61,21 +59,3 @@ class VideoManager(threading.Thread):
 		"""Return (timestamp, frame) for the most recent frame, or None if none captured yet."""
 		with self._latest_lock:
 			return self._latest
-
-	def save_video(self):
-		os.makedirs("recordings", exist_ok=True)
-		timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-		filename = f"recordings/{timestamp}.mp4"
-		snapshot = self.buffer.snapshot()
-		if not snapshot:
-			print("No frames to save.")
-			return
-		actual_fps = self.buffer.measured_fps() or self.fps
-		frames = [decode(data) for _, data in snapshot]
-		fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-		height, width, _ = frames[0].shape
-		out = cv2.VideoWriter(filename, fourcc, actual_fps, (width, height))
-		for frame in frames:
-			out.write(frame)
-		out.release()
-		print(f"Saved last 10 seconds to {filename}")
