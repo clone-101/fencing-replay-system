@@ -7,7 +7,7 @@ DEFAULT_SETTINGS = {
     "video_width": 1920,
     "video_height": 1080,
     "fps": 30,
-    "buffer_seconds": 120,
+    "buffer_seconds": 20,
     "udp_port": 5050,
     "wemos_ip": None
 }
