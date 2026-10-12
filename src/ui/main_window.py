@@ -2,13 +2,18 @@ from tkinter import ttk, Toplevel, Menu
 import tkinter as tk
 import platform
 import threading
+from datetime import datetime
+from pathlib import Path
 from ui.settings_window import SettingsWindow
 from ui.video_view import VideoView
 from utils.video_manager import VideoManager
 from utils.udp import UDPListener
 import utils.controls as controls
 import utils.settings as settings
+from utils import export
 # from src.utils.settings import load_settings, save_settings
+
+RECORDINGS_DIR = Path(__file__).resolve().parents[2] / "recordings"
 
 class MainWindow:
     def __init__(self, root):
@@ -47,8 +52,8 @@ class MainWindow:
 
         # pack the buttons before the view so the expanding canvas can't push them off-screen
         frame = ttk.Frame(master=self.root)
-        replay_button = ttk.Button(master=frame, text="Save Video", command=self.save_video)
-        replay_button.pack()
+        self.save_button = ttk.Button(master=frame, text="Save Video", command=self.save_clip)
+        self.save_button.pack()
         frame.pack(side="bottom", pady=10)
 
         self.view = VideoView(self.root)
@@ -64,9 +69,28 @@ class MainWindow:
             self.view.show(frame)
         self._tick_id = self.root.after(33, self._tick_live)
 
-    def save_video(self):
-        if self.video:
-            self.video.save_video()
+    def save_clip(self):
+        if not self.video:
+            return
+        frames = self.video.buffer.snapshot()
+        if not frames:
+            print("No frames to save.")
+            return
+        RECORDINGS_DIR.mkdir(exist_ok=True)
+        path = RECORDINGS_DIR / f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+        duration = frames[-1][0] - frames[0][0]
+        self.save_button.state(["disabled"])
+        worker = threading.Thread(target=export.save_clip, args=(frames, path), daemon=True)
+        worker.start()
+        self._poll_save(worker, duration, path)
+
+    def _poll_save(self, worker, duration, path):
+        # runs on the Tk thread; the worker never touches Tk
+        if worker.is_alive():
+            self.root.after(100, self._poll_save, worker, duration, path)
+            return
+        self.save_button.state(["!disabled"])
+        print(f"Saved {duration:.1f}s to {path}")
 
     def create_menu(self):
         menubar = Menu(self.root)
