@@ -25,6 +25,7 @@ class SettingsWindow:
             ("fps_entry", "Frame Rate (FPS):", current["fps"], ""),
             ("resolution_entry", "Video Resolution (WxH):", resolution, ""),
             ("buffer_entry", "Buffer (seconds):", current["buffer_seconds"], ""),
+            ("replay_pre_entry", "Replay length (seconds):", current["replay_pre_seconds"], "1 to buffer length"),
             ("camera_entry", "Camera index:", current["camera_index"], ""),
             ("udp_port_entry", "UDP port:", current["udp_port"], "Takes effect after restart"),
         ]
@@ -58,6 +59,7 @@ class SettingsWindow:
                 video_width=width,
                 video_height=height,
                 buffer_seconds=self._parse_int("buffer_seconds", self.buffer_entry.get()),
+                replay_pre_seconds=self._parse_int("replay_pre_seconds", self.replay_pre_entry.get()),
                 camera_index=self._parse_int("camera_index", self.camera_entry.get()),
                 udp_port=self._parse_int("udp_port", self.udp_port_entry.get()),
             )
