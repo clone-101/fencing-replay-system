@@ -11,7 +11,8 @@ DEFAULT_SETTINGS = {
     "buffer_seconds": 20,
     "udp_port": 5050,
     "wemos_ip": None,
-    "camera_index": 0
+    "camera_index": 0,
+    "replay_pre_seconds": 5
 }
 
 # field -> (min, max); max None means unbounded above
@@ -22,6 +23,8 @@ INT_RANGES = {
     "buffer_seconds": (2, 60),
     "udp_port": (1024, 65535),
     "camera_index": (0, None),
+    # also capped at buffer_seconds by _check_replay_pre_seconds
+    "replay_pre_seconds": (1, 60),
 }
 
 
@@ -63,9 +66,17 @@ def _validate_field(key, value):
     raise ValueError(f"Unknown setting: {key}")
 
 
+def _check_replay_pre_seconds(settings):
+    pre, buffer = settings["replay_pre_seconds"], settings["buffer_seconds"]
+    if pre > buffer:
+        raise ValueError(f"replay_pre_seconds must be between 1 and buffer_seconds ({buffer}), got {pre}")
+
+
 def validate_settings(settings):
     """Return cleaned settings; missing keys take defaults. Raises ValueError on the first bad field."""
-    return {k: _validate_field(k, settings.get(k, default)) for k, default in DEFAULT_SETTINGS.items()}
+    cleaned = {k: _validate_field(k, settings.get(k, default)) for k, default in DEFAULT_SETTINGS.items()}
+    _check_replay_pre_seconds(cleaned)
+    return cleaned
 
 
 def load_settings():
@@ -88,6 +99,12 @@ def load_settings():
             settings[key] = _validate_field(key, loaded[key])
         except ValueError as e:
             print(f"Warning: invalid setting ignored ({e}); using default {default!r}")
+    try:
+        _check_replay_pre_seconds(settings)
+    except ValueError as e:
+        fallback = min(DEFAULT_SETTINGS["replay_pre_seconds"], settings["buffer_seconds"])
+        print(f"Warning: invalid setting ignored ({e}); using {fallback}")
+        settings["replay_pre_seconds"] = fallback
     return settings
 
 def save_settings(settings):

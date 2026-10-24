@@ -2,11 +2,13 @@ from tkinter import ttk, Toplevel, Menu
 import tkinter as tk
 import platform
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 from ui.settings_window import SettingsWindow
 from ui.video_view import VideoView
-from utils.video_manager import VideoManager
+from utils.video_manager import VideoManager, decode
+from utils.replay import ReplayController, REPLAY
 from utils.udp import UDPListener
 import utils.controls as controls
 import utils.settings as settings
@@ -28,6 +30,9 @@ class MainWindow:
         self._tick_id = None
         self._wait_id = None
         self._stopping = None
+        self.replay = ReplayController()
+        self._replay_frames = []
+        self._replay_shown = None  # index of the replay frame currently on screen
         self.is_mac = platform.system() == "Darwin"
 
         # load settings
@@ -53,30 +58,55 @@ class MainWindow:
     def create_widgets(self):
         label = ttk.Label(master=self.root, text="Welcome to the Fencing Replay System!", font=("Arial", 16))
         label.pack()
+        self.status_label = ttk.Label(master=self.root, text="LIVE", font=("Arial", 14))
+        self.status_label.pack()
 
         # pack the buttons before the view so the expanding canvas can't push them off-screen
         frame = ttk.Frame(master=self.root)
-        self.save_button = ttk.Button(master=frame, text="Save Video", command=self.save_clip)
+        # takefocus off so Space toggles replay pause instead of pressing the button
+        self.save_button = ttk.Button(master=frame, text="Save Video", command=self.save_clip, takefocus=False)
         self.save_button.pack()
         frame.pack(side="bottom", pady=10)
 
         self.view = VideoView(self.root)
 
         self._start_capture()
-        self._tick_live()
+        self._tick()
+
+    def _tick(self):
+        # runs on the Tk thread; capture keeps filling the buffer in both modes
+        if self.replay.state == REPLAY:
+            self._tick_replay()
+        else:
+            self._tick_live()
+        self._tick_id = self.root.after(33, self._tick)
 
     def _tick_live(self):
-        # runs on the Tk thread; pulls the newest frame from the capture thread
+        # pulls the newest frame from the capture thread
         latest = self.video.latest() if self.video else None
         if latest is not None and latest[0] != self._last_frame_ts:
             self._last_frame_ts, frame = latest
             self.view.show(frame)
-        self._tick_id = self.root.after(33, self._tick_live)
+
+    def _tick_replay(self):
+        index, (_, data) = self.replay.current(time.monotonic())
+        if index != self._replay_shown:
+            frame = decode(data)
+            if frame is not None:
+                self.view.show(frame)
+            self._replay_shown = index
+        icon = "⏸" if self.replay.paused else "▶"
+        self.status_label.config(
+            text=f"REPLAY {self.replay.speed}x {icon} {index + 1}/{len(self._replay_frames)}"
+        )
 
     def save_clip(self):
-        if not self.video:
+        if self.replay.state == REPLAY:
+            frames = list(self._replay_frames)
+        elif self.video:
+            frames = self.video.buffer.snapshot()
+        else:
             return
-        frames = self.video.buffer.snapshot()
         if not frames:
             print("No frames to save.")
             return
@@ -132,9 +162,41 @@ class MainWindow:
         self._start_capture()
 
     def replay_video(self):
-        # FIXME: Implement replay functionality
-        print("Replay functionality not implemented yet.")
-    
+        """Freeze the view and replay the last replay_pre_seconds; capture keeps running."""
+        if not self.video:
+            return
+        now = time.monotonic()
+        frames = self.video.buffer.snapshot(now - self.settings["replay_pre_seconds"], now)
+        if not frames:
+            print("No frames to replay.")
+            return
+        self._replay_frames = frames
+        self._replay_shown = None
+        self.replay.enter(frames, now)
+
+    def toggle_pause(self):
+        self.replay.toggle_pause(time.monotonic())
+
+    def step_frame(self, n):
+        self.replay.step(n)
+
+    def set_replay_speed(self, speed):
+        self.replay.set_speed(speed, time.monotonic())
+
+    def restart_replay(self):
+        self.replay.restart(time.monotonic())
+
+    def exit_replay(self):
+        if self.replay.state != REPLAY:
+            return
+        self.replay.exit()
+        self._replay_frames = []
+        self._replay_shown = None
+        # force the next tick to redraw the newest live frame even if it is unchanged
+        self._last_frame_ts = None
+        self.status_label.config(text="LIVE")
+        self._tick_live()
+
     def handle_udp_message(self, msg):
         # FIXME: Implement UDP message handling
         print(f"Received UDP message: {msg}")

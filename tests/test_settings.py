@@ -36,10 +36,23 @@ def test_validate_ip_accepted():
     ("camera_index", -1), ("camera_index", "0"), ("camera_index", True),
     ("udp_port", 1023), ("udp_port", 65536),
     ("wemos_ip", "999.1.1.1"), ("wemos_ip", "abc"), ("wemos_ip", "1.2.3"), ("wemos_ip", 5),
+    ("replay_pre_seconds", 0), ("replay_pre_seconds", "5"), ("replay_pre_seconds", 2.5),
+    ("replay_pre_seconds", DEFAULT_SETTINGS["buffer_seconds"] + 1),
 ])
 def test_validate_rejects_out_of_range(key, value):
     with pytest.raises(ValueError, match=key):
         validate_settings(dict(DEFAULT_SETTINGS, **{key: value}))
+
+
+@pytest.mark.parametrize("pre", [1, 10])
+def test_validate_replay_pre_seconds_up_to_buffer(pre):
+    cleaned = validate_settings(dict(DEFAULT_SETTINGS, buffer_seconds=10, replay_pre_seconds=pre))
+    assert cleaned["replay_pre_seconds"] == pre
+
+
+def test_validate_replay_pre_seconds_above_buffer_rejected():
+    with pytest.raises(ValueError, match="replay_pre_seconds"):
+        validate_settings(dict(DEFAULT_SETTINGS, buffer_seconds=10, replay_pre_seconds=11))
 
 
 @pytest.fixture
@@ -65,6 +78,14 @@ def test_load_invalid_value_falls_back(settings_file, capsys):
     assert loaded["fps"] == DEFAULT_SETTINGS["fps"]
     assert loaded["udp_port"] == 6000
     assert "fps" in capsys.readouterr().out
+
+
+def test_load_replay_pre_seconds_above_buffer_falls_back(settings_file, capsys):
+    settings_file.write_text(json.dumps(dict(DEFAULT_SETTINGS, buffer_seconds=3, replay_pre_seconds=10)))
+    loaded = settings.load_settings()
+    assert loaded["buffer_seconds"] == 3
+    assert loaded["replay_pre_seconds"] == 3
+    assert "replay_pre_seconds" in capsys.readouterr().out
 
 
 def test_settings_file_is_project_relative():
