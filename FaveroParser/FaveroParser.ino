@@ -9,6 +9,7 @@ const char *password = "12345678";
 
 const unsigned int MAX_MESSAGE_LEN = 10;
 const unsigned int MAX_SERIAL_BUFFER_BYTES = 512;
+const unsigned long RESEND_INTERVAL_MS = 500;
 const char STARTING_BYTE = 255;
 
 unsigned int COUNTER = 0;
@@ -16,8 +17,11 @@ bool MACHINE_OFF = true;
 
 WiFiUDP udp;
 
-IPAddress laptopIP(192, 168, 4, 2);
+IPAddress broadcastIP;
 const int udpPort = 5050;
+char lastPayload[MAX_SERIAL_BUFFER_BYTES];
+size_t lastPayloadLen = 0;
+unsigned long lastSendMillis = 0;
 
 struct dataPacket
 {
@@ -39,6 +43,14 @@ struct dataPacket
 	bool Priority_Right;
 };
 
+void sendLastPacket()
+{
+	udp.beginPacket(broadcastIP, udpPort);
+	udp.write((uint8_t *)lastPayload, lastPayloadLen);
+	udp.endPacket();
+	lastSendMillis = millis();
+}
+
 // bool newData = false;
 unsigned int message_pos = 0;
 
@@ -52,6 +64,8 @@ void setup()
 	Serial.println(MY_NAME);
 	WiFi.softAP(ssid, password);
 	delay(3000);
+	IPAddress apIP = WiFi.softAPIP();
+	broadcastIP = IPAddress(apIP[0], apIP[1], apIP[2], 255);
 
 	udp.begin(udpPort);
 	Serial.println("Initialized.");
@@ -167,25 +181,26 @@ void loop()
 					doc["Priority_Left"] = packet.Priority_Left;
 					doc["Priority_Right"] = packet.Priority_Right;
 
-					char buffer[MAX_SERIAL_BUFFER_BYTES];
-					size_t len = serializeJson(doc, buffer);
-
-					udp.beginPacket(laptopIP, udpPort);
-					udp.write((uint8_t *)buffer, len);
-					udp.endPacket();
+					lastPayloadLen = serializeJson(doc, lastPayload);
+					sendLastPacket();
 				}
 			}
 			else
 			{
-				Serial.println("Unexpected Message Position, Resetting to zero.");
+				Serial.println("Wrong checksum! Throwing it out.");
 				message_pos = 0;
 			}
 		}
 		else
 		{
-			Serial.println("Wrong checksum! Throwing it out.");
+			Serial.println("Unexpected Message Position, Resetting to zero.");
 			message_pos = 0;
 		}
+	}
+
+	if (lastPayloadLen > 0 && millis() - lastSendMillis >= RESEND_INTERVAL_MS)
+	{
+		sendLastPacket();
 	}
 }
 
